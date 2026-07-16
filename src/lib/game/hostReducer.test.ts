@@ -353,4 +353,31 @@ describe('host authority', () => {
 
     expect(engine.state.phase).toBe('card-entry')
   })
+  it('再接続情報を失っても同じ名前と招待URLで切断中の席へ戻れる', () => {
+    const { engine, transport } = createEngine()
+    engine.startGame()
+    const guestA = engine.state.players[1]
+    engine.handleConnectionClosed('conn-a')
+
+    engine.handleMessage(
+      'conn-a-new',
+      joinMessage('join-recover-a', 'client-a-new', guestA.name),
+    )
+
+    const accepted = transport.sent.find(
+      (entry) =>
+        entry.connectionId === 'conn-a-new' &&
+        entry.message.type === 'JOIN_ACCEPTED' &&
+        entry.message.requestId === 'join-recover-a',
+    )
+
+    expect(accepted?.message.type).toBe('JOIN_ACCEPTED')
+    if (accepted?.message.type === 'JOIN_ACCEPTED') {
+      expect(accepted.message.playerId).toBe(guestA.id)
+    }
+    expect(engine.state.players[1].id).toBe(guestA.id)
+    expect(engine.state.players[1].clientId).toBe('client-a-new')
+    expect(engine.state.players[1].connectionStatus).toBe('connected')
+    expect(engine.state.phase).toBe('card-entry')
+  })
 })

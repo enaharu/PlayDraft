@@ -467,7 +467,17 @@ export default function PlayDraftPage() {
   }
 
   if (view.publicState.phase === 'paused') {
-    return <ConnectionLostScreen view={view} />
+    return (
+      <ConnectionLostScreen
+        view={view}
+        inviteUrl={inviteUrl}
+        onCopyInvite={() => {
+          if (inviteUrl) {
+            void navigator.clipboard.writeText(inviteUrl)
+          }
+        }}
+      />
+    )
   }
 
   if (view.publicState.phase === 'lobby') {

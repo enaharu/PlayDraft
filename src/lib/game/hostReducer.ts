@@ -293,15 +293,27 @@ export class HostGameEngine {
       return
     }
 
-    if (this.state.phase !== 'lobby') {
-      reject('GAME_ALREADY_STARTED')
-      return
-    }
-
     const displayName = message.displayName.trim()
 
     if (displayName.length === 0) {
       reject('EMPTY_NAME')
+      return
+    }
+
+    if (this.state.phase !== 'lobby') {
+      const disconnectedPlayer = this.state.players.find(
+        (player) =>
+          !player.isHost &&
+          player.connectionStatus === 'disconnected' &&
+          player.name.toLowerCase() === displayName.toLowerCase(),
+      )
+
+      if (disconnectedPlayer) {
+        this.recoverDisconnectedPlayerFromJoin(connectionId, message, disconnectedPlayer)
+        return
+      }
+
+      reject('GAME_ALREADY_STARTED')
       return
     }
 
@@ -342,6 +354,46 @@ export class HostGameEngine {
       requestId: message.requestId,
       playerId: player.id,
       reconnectToken: player.reconnectToken,
+      revision: this.state.revision,
+      view: this.getViewForPlayer(player.id),
+    })
+    this.broadcastSnapshots()
+  }
+
+  private recoverDisconnectedPlayerFromJoin(
+    connectionId: ConnectionId,
+    message: JoinRequestMessage,
+    player: Player,
+  ): void {
+    const oldConnectionId = this.playerToConnection.get(player.id)
+    if (oldConnectionId && oldConnectionId !== connectionId) {
+      this.transport.close(oldConnectionId)
+      this.connectionToPlayer.delete(oldConnectionId)
+    }
+
+    const reconnectToken = createToken(24)
+    this.linkConnection(connectionId, player.id)
+    let nextState = this.updatePlayer(player.id, {
+      clientId: message.clientId,
+      connectionStatus: 'connected',
+      reconnectToken,
+    })
+
+    if (nextState.phase === 'paused' && allPlayersConnected(nextState.players)) {
+      nextState = {
+        ...nextState,
+        phase: nextState.phaseBeforePause ?? 'lobby',
+        phaseBeforePause: undefined,
+      }
+    }
+
+    this.commitState(nextState, message.requestId)
+    this.transport.send(connectionId, {
+      type: 'JOIN_ACCEPTED',
+      protocolVersion: PROTOCOL_VERSION,
+      requestId: message.requestId,
+      playerId: player.id,
+      reconnectToken,
       revision: this.state.revision,
       view: this.getViewForPlayer(player.id),
     })
@@ -923,7 +975,7 @@ export class HostGameEngine {
 
   private updatePlayer(
     playerId: PlayerId,
-    patch: Partial<Pick<Player, 'connectionStatus'>>,
+    patch: Partial<Pick<Player, 'clientId' | 'connectionStatus' | 'reconnectToken'>>,
   ): AuthoritativeGameState {
     return {
       ...this.state,

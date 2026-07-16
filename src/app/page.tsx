@@ -482,6 +482,7 @@ export default function PlayDraftPage() {
           }
         }}
         onStartGame={() => hostManagerRef.current?.engine.startGame()}
+        onRecreateRoom={() => void runWakeup({ type: 'create-host' })}
       />
     )
   }

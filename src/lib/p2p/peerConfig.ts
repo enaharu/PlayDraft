@@ -9,12 +9,29 @@ export interface PeerConnectionConfig {
   }
 }
 
+const DEFAULT_PUBLIC_PEER_HOST = 'playdraft-peer.onrender.com'
+
+function defaultPeerHost(): string {
+  return process.env.NODE_ENV === 'production' ? DEFAULT_PUBLIC_PEER_HOST : 'localhost'
+}
+
+function defaultPeerPort(): number {
+  return process.env.NODE_ENV === 'production' ? 443 : 9000
+}
+
+function defaultPeerSecure(): boolean {
+  return process.env.NODE_ENV === 'production'
+}
+
 export function getPeerConfig(): PeerConnectionConfig {
   return {
-    host: process.env.NEXT_PUBLIC_PEER_HOST ?? 'localhost',
-    port: Number(process.env.NEXT_PUBLIC_PEER_PORT ?? 9000),
+    host: process.env.NEXT_PUBLIC_PEER_HOST ?? defaultPeerHost(),
+    port: Number(process.env.NEXT_PUBLIC_PEER_PORT ?? defaultPeerPort()),
     path: process.env.NEXT_PUBLIC_PEER_PATH ?? '/peerjs',
-    secure: process.env.NEXT_PUBLIC_PEER_SECURE === 'true',
+    secure:
+      process.env.NEXT_PUBLIC_PEER_SECURE === undefined
+        ? defaultPeerSecure()
+        : process.env.NEXT_PUBLIC_PEER_SECURE === 'true',
     debug: process.env.NODE_ENV === 'development' ? 2 : 1,
     config: {
       iceServers: [
@@ -29,7 +46,11 @@ export function getPeerConfig(): PeerConnectionConfig {
 export function getSignalingHealthUrl(): string {
   return (
     process.env.NEXT_PUBLIC_SIGNALING_HEALTH_URL ??
-    `${getPeerConfig().secure ? 'https' : 'http'}://${getPeerConfig().host}:${getPeerConfig().port}/health`
+    `${getPeerConfig().secure ? 'https' : 'http'}://${getPeerConfig().host}${
+      getPeerConfig().port === 443 || getPeerConfig().port === 80
+        ? ''
+        : `:${getPeerConfig().port}`
+    }/health`
   )
 }
 

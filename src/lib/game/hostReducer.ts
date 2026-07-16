@@ -601,6 +601,7 @@ export class HostGameEngine {
         nextState,
         roundNumber,
         getOrderedPlayerIds(nextState.players),
+        this.randomInt,
       )
     }
 
@@ -861,11 +862,6 @@ export class HostGameEngine {
     }
 
     if (!(draft.hands[playerId] ?? []).includes(cardId)) {
-      return 'INVALID_CARD'
-    }
-
-    const card = this.state.cards.find((candidate) => candidate.id === cardId)
-    if (card?.authorId === playerId) {
       return 'INVALID_CARD'
     }
 

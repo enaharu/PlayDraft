@@ -7,7 +7,7 @@ import {
   commitPlayerCards,
   countVotes,
   dealCards,
-  dealCardsAvoidingAuthors,
+  dealCardsRandomly,
   getFinalistCards,
   getOrderedPlayerIds,
   rotateHandsClockwise,
@@ -101,7 +101,7 @@ function discardFirstAvailableCards(
     }
   }
 
-  return commitAllDiscards(nextState, 1, getOrderedPlayerIds(players))
+  return commitAllDiscards(nextState, 1, getOrderedPlayerIds(players), () => 0)
 }
 
 describe('game logic', () => {
@@ -121,21 +121,14 @@ describe('game logic', () => {
     expect(hands.p3).toHaveLength(5)
   })
 
-  it('does not deal a card to its author', () => {
-    const state = stateWithCards()
-    const hands = dealCardsAvoidingAuthors(
+  it('can deal any card to any player in the random draft', () => {
+    const hands = dealCardsRandomly(
       ['p1', 'p2', 'p3'],
-      state.cards.map((card) => ({ id: card.id, authorId: card.authorId })),
-      () => 0,
+      ['p1-card', 'p2-card', 'p3-card'],
+      (max) => max - 1,
     )
 
-    for (const playerId of ['p1', 'p2', 'p3']) {
-      const ownCardIds = state.cards
-        .filter((card) => card.authorId === playerId)
-        .map((card) => card.id)
-
-      expect(hands[playerId].some((cardId) => ownCardIds.includes(cardId))).toBe(false)
-    }
+    expect(hands.p1).toContain('p1-card')
   })
 
   it('rotates hands clockwise when requested', () => {
@@ -210,16 +203,14 @@ describe('game logic', () => {
     expect(JSON.stringify(view)).not.toContain('authorId')
   })
 
-  it('does not put a player own card in their draft hand', () => {
-    const state = beginDraftForRound(stateWithCards(), 1, ['p1', 'p2', 'p3'], () => 0)
-    const draft = state.rounds[1].draft
+  it('redistributes all remaining cards after each draft cycle', () => {
+    let state = beginDraftForRound(stateWithCards(), 1, ['p1', 'p2', 'p3'], () => 0)
+    const firstHand = state.rounds[1].draft?.hands.p1 ?? []
 
-    for (const playerId of ['p1', 'p2', 'p3']) {
-      const ownCardIds = state.cards
-        .filter((card) => card.authorId === playerId)
-        .map((card) => card.id)
+    state = discardFirstAvailableCards(state)
+    const secondHand = state.rounds[1].draft?.hands.p1 ?? []
 
-      expect((draft?.hands[playerId] ?? []).some((cardId) => ownCardIds.includes(cardId))).toBe(false)
-    }
+    expect(secondHand).toHaveLength(4)
+    expect(secondHand.some((cardId) => !firstHand.includes(cardId))).toBe(true)
   })
 })

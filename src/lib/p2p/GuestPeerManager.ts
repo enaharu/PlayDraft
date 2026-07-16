@@ -218,7 +218,11 @@ export class GuestPeerManager {
 
       peer.on('error', (error) => {
         const message = error instanceof Error ? error.message : String(error)
-        const isTaken = message.includes('is taken')
+        const errorType =
+          typeof error === 'object' && error !== null && 'type' in error
+            ? String(error.type)
+            : ''
+        const isTaken = errorType === 'unavailable-id' || message.includes('is taken')
 
         if (process.env.NODE_ENV === 'development') {
           console.debug('Guest PeerJS error', error)

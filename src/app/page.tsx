@@ -63,7 +63,7 @@ type PendingAction =
   | { type: 'create-host' }
   | { type: 'restore-host' }
   | { type: 'join-guest' }
-  | { type: 'reconnect-guest'; session: PersistedGuestSession }
+  | { type: 'reconnect-guest'; session: PersistedGuestSession; invite?: InvitePayload }
 
 const initialWakeupStatus: WakeupStatus = {
   status: 'checking',
@@ -190,7 +190,10 @@ export default function PlayDraftPage() {
     }
   }
 
-  async function reconnectGuest(session: PersistedGuestSession): Promise<void> {
+  async function reconnectGuest(
+    session: PersistedGuestSession,
+    reconnectInvite?: InvitePayload,
+  ): Promise<void> {
     cleanupManagers()
     const manager = createGuestManager()
     guestManagerRef.current = manager
@@ -198,7 +201,28 @@ export default function PlayDraftPage() {
     try {
       await manager.reconnect(session)
     } catch (caughtError) {
+      manager.destroy()
       clearGuestSession()
+
+      if (reconnectInvite) {
+        const fallbackManager = createGuestManager()
+        guestManagerRef.current = fallbackManager
+        setGuestName(session.displayName)
+        setMode('guest-game')
+
+        try {
+          await fallbackManager.join(reconnectInvite, session.displayName)
+          return
+        } catch (fallbackError) {
+          const message =
+            fallbackError instanceof Error
+              ? fallbackError.message
+              : 'ホストへ再接続できませんでした'
+          setError(message)
+          setMode('join')
+          return
+        }
+      }
       const message =
         caughtError instanceof Error ? caughtError.message : 'ホストへ再接続できませんでした'
       setError(message)
@@ -242,7 +266,7 @@ export default function PlayDraftPage() {
     } else if (action.type === 'join-guest') {
       await joinGuestRoom()
     } else {
-      await reconnectGuest(action.session)
+      await reconnectGuest(action.session, action.invite)
     }
   }
 
@@ -261,7 +285,11 @@ export default function PlayDraftPage() {
     if (parsedInvite) {
       setInvite(parsedInvite)
       if (guestSession?.roomId === parsedInvite.roomId) {
-        const action: PendingAction = { type: 'reconnect-guest', session: guestSession }
+        const action: PendingAction = {
+          type: 'reconnect-guest',
+          session: guestSession,
+          invite: parsedInvite,
+        }
         setPendingAction(action)
         void runWakeup(action)
         return

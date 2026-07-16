@@ -51,6 +51,26 @@ export function dealCards(
   return hands
 }
 
+export function dealCardsRandomly(
+  orderedPlayerIds: readonly PlayerId[],
+  cardIds: readonly CardId[],
+  randomInt: RandomInt = secureRandomInt,
+): Record<PlayerId, CardId[]> {
+  const hands: Record<PlayerId, CardId[]> = Object.fromEntries(
+    orderedPlayerIds.map((playerId) => [playerId, [] as CardId[]]),
+  )
+
+  if (orderedPlayerIds.length === 0) {
+    return hands
+  }
+
+  shuffleCards(cardIds, randomInt).forEach((cardId, index) => {
+    hands[orderedPlayerIds[index % orderedPlayerIds.length]].push(cardId)
+  })
+
+  return hands
+}
+
 export function dealCardsAvoidingAuthors(
   orderedPlayerIds: readonly PlayerId[],
   cards: readonly Pick<ActionCard, 'id' | 'authorId'>[],
@@ -260,13 +280,10 @@ export function beginDraftForRound(
 ): AuthoritativeGameState {
   const round = state.rounds[roundNumber]
   const roundCardIds = round.cardIds.length > 0 ? round.cardIds : getActiveCardIds(state)
-  const roundCards = roundCardIds
-    .map((cardId) => state.cards.find((card) => card.id === cardId))
-    .filter((card): card is ActionCard => Boolean(card))
-  const hands = dealCardsAvoidingAuthors(orderedPlayerIds, roundCards, randomInt)
+  const hands = dealCardsRandomly(orderedPlayerIds, roundCardIds, randomInt)
   const totalCycles = Math.max(
     0,
-    Math.max(...orderedPlayerIds.map((playerId) => hands[playerId]?.length ?? 0)) - 1,
+    Math.ceil((roundCardIds.length - orderedPlayerIds.length) / orderedPlayerIds.length),
   )
 
   const cards = state.cards.map((card) => {
@@ -355,6 +372,7 @@ export function commitAllDiscards(
   state: AuthoritativeGameState,
   roundNumber: RoundNumber,
   orderedPlayerIds: readonly PlayerId[],
+  randomInt: RandomInt = secureRandomInt,
 ): AuthoritativeGameState {
   const round = state.rounds[roundNumber]
   const draft = round.draft
@@ -383,10 +401,11 @@ export function commitAllDiscards(
     )
   })
 
+  const remainingCardIds = orderedPlayerIds.flatMap((playerId) => reducedHands[playerId] ?? [])
   const completed =
-    orderedPlayerIds.every((playerId) => (reducedHands[playerId]?.length ?? 0) <= 1) ||
+    remainingCardIds.length <= orderedPlayerIds.length ||
     draft.cycleIndex + 1 >= draft.totalCycles
-  const nextHands = reducedHands
+  const nextHands = dealCardsRandomly(orderedPlayerIds, remainingCardIds, randomInt)
   const finalistCardIds = completed ? getFinalistCards(nextHands) : []
   const nextDraft: DraftState = {
     cycleIndex: completed ? draft.cycleIndex : draft.cycleIndex + 1,

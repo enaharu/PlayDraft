@@ -35,7 +35,7 @@ export function DraftScreen({
         />
         <h1 className="text-2xl font-black">落とすカードを1枚選ぶ</h1>
         <p className="mt-2 text-sm font-bold text-black/60">
-          手札には他の2人が書いたカードだけが入ります。残したいカードではなく、今回は落とすカードを選びます。
+          毎ターン、残っているカードをすべてシャッフルして配り直します。自分が書いたカードも含めて完全ランダムです。
         </p>
         <p className="mt-3 rounded-full bg-[#f0f7ff] px-3 py-2 text-center text-xs font-black">
           ドラフト {view.publicState.draftCycle} / {view.publicState.draftTotalCycles}
@@ -76,7 +76,7 @@ export function DraftWaitingScreen({ view }: { view: ClientGameView }) {
         />
         <h1 className="text-2xl font-black">ほかのプレイヤーを待っています</h1>
         <p className="mt-2 text-sm font-bold text-black/60">
-          全員が選び終わるまで、カードの内容は公開されません。
+          全員が選び終わると、残ったカードをシャッフルして次の手札を配ります。
         </p>
         <div className="mt-5">
           <ProgressIndicator

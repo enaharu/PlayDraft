@@ -476,6 +476,7 @@ export default function PlayDraftPage() {
             void navigator.clipboard.writeText(inviteUrl)
           }
         }}
+        onResetHome={returnHomeAfterGame}
       />
     )
   }

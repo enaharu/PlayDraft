@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: idea-battle-peer-server
+    runtime: node
+    plan: free
+    rootDir: signaling-server
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true

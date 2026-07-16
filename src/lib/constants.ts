@@ -1,0 +1,6 @@
+export const APP_NAME = 'PlayDraft'
+export const APP_NAME_JA = 'プレイドラフト'
+export const CATCH_COPY = 'やってみたい行動を、ドラフトで選ぶ。'
+export const HOST_STORAGE_KEY = 'playdraft-host-v1'
+export const GUEST_STORAGE_KEY = 'playdraft-guest-v1'
+export const INVITE_HASH_KEY = 'join'

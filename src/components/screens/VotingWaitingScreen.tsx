@@ -1,0 +1,1 @@
+export { VotingWaitingScreen } from './VotingScreen'
